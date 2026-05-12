@@ -9,19 +9,34 @@ set(PICO_PLATFORM rp2040)
 include(pico_sdk_import.cmake)
 
 # Создаем проект. Аргументом указывается имя проекта - типовая строчка для любого CMakeLists.txt
-project(02_echo)
+project(06_device)
+
 
 # Вызываем функцию инициализации Pico SDK - специфика сборки под Pico
 pico_sdk_init()
 
+add_subdirectory("../libs/ili9341-driver" "${PROJECT_BINARY_DIR}/ili9341-driver")
+add_subdirectory("../libs/bme280-driver" "${PROJECT_BINARY_DIR}/bme280_driver")
+add_subdirectory("../libs/protocol" "${PROJECT_BINARY_DIR}/protocol")
+
 # Добавляем в проект файлы с исходным кодом - типовая строчка для любого CMakeLists.txt
 add_executable(${PROJECT_NAME}
  ${CMAKE_CURRENT_SOURCE_DIR}/main.c
+ ${CMAKE_CURRENT_SOURCE_DIR}/stdio-task/stdio-task.c
+ ${CMAKE_CURRENT_SOURCE_DIR}/protocol-task/protocol-task.c
+ ${CMAKE_CURRENT_SOURCE_DIR}/led-task/led-task.c
 )
 
 # Указываем на какие библиотеки ссылается наш код - типовая строчка для любого CMakeLists.txt
 target_link_libraries(${PROJECT_NAME}
  pico_stdlib
+ ili9341
+ hardware_spi
+ bme280_driver 
+ hardware_gpio
+ hardware_i2c     
+ protocol
+
 )
 
 # Указываем файл, в котором находится линкер скрипт - специфика сборки под МК

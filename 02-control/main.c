@@ -1,126 +1,106 @@
-#define DEVICE_NAME "my-pico-device"
-#define DEVICE_VRSN "v0.0.1"
-
+#include "stdio.h"
+#include "stdlib.h"
 #include "pico/stdlib.h"
-#include "hardware/gpio.h"
 #include "stdio-task/stdio-task.h"
 #include "protocol-task/protocol-task.h"
 #include "led-task/led-task.h"
-#include "stdint.h" 
 
-//onst uint LED_PIN = 25;
 
+#define DEVICE_NAME "my-pico-device"
+#define DEVICE_VRSN "v0.0.1"
+void help_callback(const char* args);
 void version_callback(const char* args)
 {
-	printf("device name: '%s', firmware version: %s\n", DEVICE_NAME, DEVICE_VRSN);
+    printf("device name: '%s', firmware version: %s\n", DEVICE_NAME, DEVICE_VRSN);
 }
 
-void led_on_callback(const char* args){
+void led_on_callback(const char* args)
+{
+    printf("led_on:\n");
     led_task_state_set(LED_STATE_ON);
 }
 
-void led_off_callback(const char* args){
+void led_off_callback(const char* args)
+{
+    printf("led_off:\n");
     led_task_state_set(LED_STATE_OFF);
 }
 
-void led_blink_callback(const char* args){
+void led_blink_callback(const char* args)
+{
+    printf("led_blink:\n");
     led_task_state_set(LED_STATE_BLINK);
 }
 
 void led_blink_set_period_ms_callback(const char* args){
-    int period_ms = 0;
+    uint period_ms = 0;
     sscanf(args, "%u", &period_ms);
-    if(period_ms == 0){
+    if (period_ms ==0){
+        printf("incorrect delay for blink\n");
         return;
     }
     else{
         led_task_set_blink_period_ms(period_ms);
-        led_task_state_set(LED_STATE_BLINK);
     }
 }
 
-void help_callback(const char* args){
-    char* helps[] = {"version","on","off","blink","set_period","help"};
-    char* infos[] = {"get version","tuen led on","turn led off","start blink","set period for blinking","help"};
-    for(int i = 0 ; i < 6;i++){
-        printf("command: '%s', help_info: '%s' \n", helps[i], infos[i]);
-    }
-}
-
-void mem(uint32_t addr)
-{
-    uint32_t* ptr    = (uint32_t*)addr; 
-    uint32_t  value  = *ptr;
-
-    printf("mem[0x%08X] = 0x%08X\n", addr, value);
-}
-
-void wmem(uint32_t addr, uint32_t value)
-{
-    *(volatile uint32_t*)addr = value;
-
-    printf("wmem[0x%08X] <- 0x%08X done\n", addr, value);
-}
-
-void mem_callback(const char* args)
-{
-    if (args == NULL || args[0] == '\0')
-    {
-        printf("error: usage: mem <hex_address>\n");
+void mem_callback(const char* args){
+    uint32_t addr;
+    if (sscanf(args, "%x", &addr) != 1) {
+        printf("Error: invalid address format.\n");
         return;
     }
-
-    
-    uint32_t address = (uint32_t)strtoul(args, NULL, 16);
-
-    
-    mem(address);
+    mem_prot(addr);
 }
 
-void wmem_callback(const char* args)
-{
-    if (args == NULL || args[0] == '\0')
-    {
-        printf("error: usage: wmem <hex_addr> <hex_value>\n");
+void wmem_callback(const char* args){
+    uint32_t addr, value;
+    if (sscanf(args, "%x %x", &addr, &value) != 2) {
+        printf("Error: invalid arguments.\n");
         return;
     }
+    wmem_prot(addr, value);
+}
 
-    char* end_ptr;
-    
-    uint32_t addr  = (uint32_t)strtoul(args,    &end_ptr, 16);
 
-    uint32_t value = (uint32_t)strtoul(end_ptr, NULL,     16);
 
-    wmem(addr, value);
-    led_task_state_set(LED_STATE_BLINK);
+api_t device_api[] =
+{
+ {"version", version_callback, "get device name and firmware version"},
+ {"on", led_on_callback, "turns led on"},
+ {"off", led_off_callback, "turns led off"},
+ {"blink", led_blink_callback, "turns led in blink state"},
+ {"set_period", led_blink_set_period_ms_callback, "set delay time for blink"},
+ {"command_help", help_callback, "show all commands"},
+ {"mem", mem_callback, "read from address"},
+ {"wmem", wmem_callback, "write to address"},
+ {NULL, NULL, NULL}
+};
+
+void help_callback(const char* args) {
+    printf("Available commands:\n");
+    for (int i = 0; device_api[i].command_name != NULL; i++) {
+        printf("  %s: %s\n", device_api[i].command_name, device_api[i].command_help);
+    }
 }
 
 int main(){
-    stdio_init_all();
-    led_task_init();
-
-    api_t device_api[] =
-    {
-        {"version", version_callback, "get device name and firmware version"},
-        {"on", led_on_callback, "turn the lights on"},
-        {"off", led_off_callback, "turn the lights off"},
-        {"blink", led_blink_callback, "start blinking"},
-        {"set_period", led_blink_set_period_ms_callback, "set period of blinking"},
-        {"help", help_callback, "get help"},
-        {"mem", mem_callback, "get mem"},
-        {"wmem", wmem_callback, "get mem"},
-        {NULL, NULL, NULL},
-    };
-
-    protocol_task_init(device_api);
     stdio_task_init();
-
-    while(1){
-        char* com = stdio_task_handle();
-        if(com != NULL){
-            protocol_task_handle(com);
-        }
-
+    stdio_init_all();
+    protocol_task_init(device_api);
+    led_task_init();
+    while (1)
+    {
         led_task_handle();
+        char* command = stdio_task_handle();
+        
+        if (command != NULL)
+        {                   
+            protocol_task_handle(command);
+
+        }
     }
 }
+
+
+

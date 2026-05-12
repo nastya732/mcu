@@ -16,12 +16,12 @@ pico_sdk_init()
 
 # Добавляем в проект файлы с исходным кодом - типовая строчка для любого CMakeLists.txt
 add_executable(01_blink
-	${CMAKE_CURRENT_SOURCE_DIR}/main.c
+ ${CMAKE_CURRENT_SOURCE_DIR}/main.c
 )
 
 # Указываем на какие библиотеки ссылается наш код - типовая строчка для любого CMakeLists.txt
 target_link_libraries(01_blink
-	pico_stdlib
+ pico_stdlib
 )
 
 # Указываем файл, в котором находится линкер скрипт - специфика сборки под МК

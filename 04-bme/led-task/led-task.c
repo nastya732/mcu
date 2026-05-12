@@ -23,6 +23,7 @@ void led_task_handle()
     {
     case LED_STATE_OFF:
         gpio_put(LED_PIN, 0);
+
         break;
     case LED_STATE_ON:
         gpio_put(LED_PIN, 1);

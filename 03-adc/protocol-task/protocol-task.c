@@ -1,20 +1,41 @@
 #include "protocol-task.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "pico/stdlib.h"
 #include "string.h"
 
 static api_t* api = {0};
 static int commands_count = 0;
 
-void protocol_task_init(api_t* device_api){
+void protocol_task_init(api_t* device_api)
+{
+    // Сохраняем указатель на массив команд
     api = device_api;
-    commands_count = 1;
-};
+    
+    // Подсчитываем количество команд в массиве
+    // Ищем конец массива по NULL-терминатору в имени команды
+    commands_count = 0;
+    if (api != NULL)
+    {
+        while (api[commands_count].command_name != NULL)
+        {
+            commands_count++;
+        }
+    }
+}
 
-void protocol_task_handle(char* command_string){
-    // логика обработки полученной строки. Делим ее на команду и аргументы:
-    char* command_name = command_string;
-    char* command_args = NULL;
+void protocol_task_handle(char* command_string)
+{
+    // Проверка на то, что command_string не равно NULL
+    if (!command_string)
+    {
+        // Строка команды еще не получена - выходим
+        return;
+    }
+
+    // Логика обработки полученной строки. Делим ее на команду и аргументы:
+    const char* command_name = command_string;
+    const char* command_args = NULL;
 
     char* space_symbol = strchr(command_string, ' ');
 
@@ -24,30 +45,28 @@ void protocol_task_handle(char* command_string){
         command_args = space_symbol + 1;
     }
     else
-    {   
+    {
         command_args = "";
     }
 
+    // Вывод найденных имени команды и ее аргументов
+    printf("Получена команда: '%s'\n", command_name);
+    printf("Аргументы: '%s'\n", command_args);
 
-    printf("command: '%s'\n", command_name);
-    printf("args: '%s'\n", command_args);
-
-
-    int index = 0;
-    bool ch = 0;
-    while(api[index].command_name != NULL)
+    // В цикле проходим по массиву команд api и ищем совпадение имени команды
+    for (int i = 0; i < commands_count; i++)
     {
-        if(!strcmp(command_name, api[index].command_name)){
-            api[index].command_callback(command_args);
-            ch = 1;
+        
+        // Определяем совпадает ли команда с именем команды в массиве api
+        if (strcmp(command_name, api[i].command_name) == 0)
+        {
+            // Мы нашли команду, вызываем callback найденной команды
+            api[i].command_callback(command_args);
             return;
         }
-
-        index++;
     }
-
-    if(!ch){
-        printf("Command not found\n");
-    }
+    printf("%d", 100);
+    // Выводим ошибку, если команда не была найдена в списке команд
+    printf("Ошибка: неизвестная команда '%s'\n", command_name);
     return;
 }

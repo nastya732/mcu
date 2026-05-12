@@ -1,85 +1,89 @@
-#define DEVICE_NAME "my-pico-device"
-#define DEVICE_VRSN "v0.0.1"
-
+#include "stdio.h"
+#include "stdlib.h"
 #include "pico/stdlib.h"
-#include "hardware/gpio.h"
 #include "stdio-task/stdio-task.h"
 #include "protocol-task/protocol-task.h"
 #include "led-task/led-task.h"
-#include "stdint.h" 
+#include "adc-task/adc-task.h"
 
-//onst uint LED_PIN = 25;
+
+#define DEVICE_NAME "my-pico-device"
+#define DEVICE_VRSN "v0.0.1"
 
 void version_callback(const char* args)
 {
-	printf("device name: '%s', firmware version: %s\n", DEVICE_NAME, DEVICE_VRSN);
+    printf("device name: '%s', firmware version: %s\n", DEVICE_NAME, DEVICE_VRSN);
 }
 
-void led_on_callback(const char* args){
+void led_on_callback(const char* args)
+{
+    printf("led_on:\n");
     led_task_state_set(LED_STATE_ON);
 }
 
-void led_off_callback(const char* args){
+void led_off_callback(const char* args)
+{
+    printf("led_off:\n");
     led_task_state_set(LED_STATE_OFF);
 }
 
-void led_blink_callback(const char* args){
+void led_blink_callback(const char* args)
+{
+    printf("led_blink:\n");
     led_task_state_set(LED_STATE_BLINK);
 }
 
-void led_blink_set_period_ms_callback(const char* args){
-    int period_ms = 0;
-    sscanf(args, "%u", &period_ms);
-    if(period_ms == 0){
-        return;
-    }
-    else{
-        led_task_set_blink_period_ms(period_ms);
-        led_task_state_set(LED_STATE_BLINK);
-    }
+void adc_callback(const char* args)
+{
+    float voltage_V=adc_task_getV();
+    printf("%f\n", voltage_V);
 }
 
-void help_callback(const char* args){
-    char* helps[] = {"version","on","off","blink","set_period","help"};
-    char* infos[] = {"get version","tuen led on","turn led off","start blink","set period for blinking","help"};
-    for(int i = 0 ; i < 6;i++){
-        printf("command: '%s', help_info: '%s' \n", helps[i], infos[i]);
-    }
+void adc_t_callback(const char* args)
+{
+    float temp_C=adc_task_getT();
+    printf("%f\n", temp_C);
+}
+void tm_start_callback(const char* args){
+    adc_task_set_state(ADC_TASK_STATE_RUN);
+    printf("Telemetry started.\n");
+}
+void tm_stop_callback(const char* args){
+    adc_task_set_state(ADC_TASK_STATE_IDLE);
+    printf("Telemetry stopped.\n");
 }
 
-void mem_callback(const char* args){
-    uint32_t addr;
-    sscanf(args, "%u", &addr);
-    printf("%s",addr);
-
-
-}
+api_t device_api[] =
+{
+ {"version", version_callback, "get device name and firmware version"},
+ {"on", led_on_callback, "turns led on"},
+ {"off", led_off_callback, "turns led off"},
+ {"blink", led_blink_callback, "turns led in blink state"},
+ {"get_adc", adc_callback, "get voltage by adc"},
+ {"get_temp", adc_t_callback, "get temperature by adc"},
+ {"tm_start", tm_start_callback, "start getting temp"},
+ {"tm_stop", tm_stop_callback, "stop getting temp"},
+ {NULL, NULL, NULL}
+};
 
 int main(){
-    stdio_init_all();
-    led_task_init();
-
-    api_t device_api[] =
-    {
-        {"version", version_callback, "get device name and firmware version"},
-        {"on", led_on_callback, "turn the lights on"},
-        {"off", led_off_callback, "turn the lights off"},
-        {"blink", led_blink_callback, "start blinking"},
-        {"set_period", led_blink_set_period_ms_callback, "set period of blinking"},
-        {"help", help_callback, "get help"},
-        {"mem", mem_callback, "get mem"},
-        {NULL, NULL, NULL},
-    };
-
-    protocol_task_init(device_api);
     stdio_task_init();
-
-    while(1){
-        char* com = stdio_task_handle();
-        if(com != NULL){
-            protocol_task_handle(com);
-        }
-
+    stdio_init_all();
+    protocol_task_init(device_api);
+    led_task_init();
+    adc_task_init();
+    while (1)
+    {
         led_task_handle();
+        char* command = stdio_task_handle();
+        adc_task_handle();
+        if (command != NULL)
+        {                   
+            protocol_task_handle(command);
+
+        }
     }
 }
+
+
+
